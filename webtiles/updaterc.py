@@ -59,7 +59,7 @@ class RCUpdater(WebTilesConnection):
             for game in self.update_games:
                 matching_game = None
                 for server_game in self.games:
-                    game_pattern = r"DCSS.*{}".format(game)
+                    game_pattern = r"(DCSS)?.*{}".format(game)
                     match = re.search(game_pattern, server_game,
                                       flags=re.IGNORECASE)
                     if match:
@@ -114,7 +114,7 @@ def main():
     known_servers = {
         "cao" : ("ws://crawl.akrasiac.org:8080/socket", 1),
         "cbro" : ("ws://crawl.berotato.org:8080/socket", 1),
-        "cjr" : ("wss://crawl.jorgrun.rocks:8081/socket", 1),
+        "cko" : ("wss://crawl.kelbi.org/socket", 1),
         "cpo" : ("wss://crawl.project357.org/socket", 2),
         "cue" : ("wss://underhound.eu:8080/socket", 1),
         "cwz" : ("ws://webzook.net:8080/socket", 1),

@@ -18,8 +18,8 @@ class WebTilesError(Exception):
     pass
 
 class WebTilesConnection():
-    """A base clase for a connection to a WebTiles server. Inherit from this and
-    extend `handle_message()` to handle additional message types or process
+    """A base clase for a connection to a WebTiles server. Inherit from this
+    and extend `handle_message()` to handle additional message types or process
     those that `WebTilesConnection` already handles. This class handles
     connecting, logging in, getting a list of games, lobby data, and setting rc
     files. It has preliminary support for the second-version protocol used by
@@ -45,9 +45,7 @@ class WebTilesConnection():
     needed and always None.
 
     Some errors will raise `WebTilesError`, where the first exception argument
-    will be an error message.
-
-    """
+    will be an error message."""
 
     def __init__(self, *args, **kwargs):
         super().__init__(*args, **kwargs)
@@ -66,9 +64,7 @@ class WebTilesConnection():
         """Connect to the given websocket URL with optional credentials. Use a
         value of 2 for `protocol_version` on servers running the
         webtiles-changes branch. Additional arguments are passed to
-        `webscokets.connect()`.
-
-        """
+        `webscokets.connect()`."""
 
         if username and not password:
             raise WebTilesError("Username given but no password given.")
@@ -79,19 +75,18 @@ class WebTilesConnection():
         self.websocket = yield from websockets.connect(websocket_url, *args,
                                                        **kwargs)
         self.protocol_version = protocol_version
+
         if username:
             yield from self.send_login(username, password)
             self.login_user = username
 
     @asyncio.coroutine
     def send_login(self, username, password):
-        """Send the login message. This is usally called by `connect()`, but the
-        `send_login()` method can be used to authenticate after connecting
+        """Send the login message. This is usally called by `connect()`, but
+        the `send_login()` method can be used to authenticate after connecting
         without credentials. The `logged_in` property will only be True after
         the server responds with a "login_complete" message when this is
-        handled by `handle_message()`.
-
-        """
+        handled by `handle_message()`."""
 
         msg = {"msg" : "login",
                "username" : username,
@@ -102,6 +97,7 @@ class WebTilesConnection():
         if self.protocol_version >= 2:
             msg["rememberme"] = False
         yield from self.send(msg)
+
         self.logged_in = False
         self.login_user = username
 
@@ -112,7 +108,7 @@ class WebTilesConnection():
 
     @asyncio.coroutine
     def disconnect(self):
-        """Close the websocket if it's open and reset the connection state"""
+        """Close the websocket if it's open and reset the connection state."""
 
         if self.websocket:
             yield from self.websocket.close()
@@ -125,13 +121,11 @@ class WebTilesConnection():
 
     @asyncio.coroutine
     def read(self):
-        """Read a WebSocket message, returning a list of message
-        dictionaries. Each dict will have a "msg" component with the type of
-        message along with any other message-specific details. The message will
-        have. Returns None if we can't parse the JSON, since some older game
-        versions send bad messages we need to ignore.
-
-        """
+        """Read a WebSocket message, returning a list of message dictionaries.
+        Each dict will have a "msg" component with the type of message along
+        with any other message-specific details. The message will have. Returns
+        None if we can't parse the JSON, since some older game versions send
+        bad messages we need to ignore."""
 
         comp_data = yield from self.websocket.recv()
         comp_data += bytes([0, 0, 255, 255])
@@ -140,6 +134,7 @@ class WebTilesConnection():
 
         try:
             message = json.loads(json_message)
+
         except ValueError as e:
             # Invalid JSON happens with data sent from older games (0.11 and
             # below), so don't spam the log with these. XXX can we ignore only
@@ -158,19 +153,16 @@ class WebTilesConnection():
         return messages
 
     def get_lobby_entry(self, username, game_id):
-        """Get the lobby entry of a game from `lobby_entries`. """
+        """Get the lobby entry of a game from `lobby_entries`."""
 
         for entry in self.lobby_entries:
             if entry["username"] == username and entry["game_id"] == game_id:
                 return entry
-        return
 
     @asyncio.coroutine
     def update_rc(self, game_id, rc_text):
-        """Update the user's RC file on the server. If the connection isn't logged
-        in, raise an exception.
-
-        """
+        """Update the user's RC file on the server. If the connection isn't
+        logged in, raise an exception."""
 
         if not self.logged_in:
             raise WebTilesError(
@@ -187,9 +179,7 @@ class WebTilesConnection():
 
         Any client using this method will need to respond to "rcfile_contents"
         messages from the WebTiles server, which will have the RC contents in
-        the "contents" key of the message dict.
-
-        """
+        the "contents" key of the message dict."""
 
         if not self.logged_in:
             raise WebTilesError("Attempted to get RC when not logged in")
@@ -199,10 +189,8 @@ class WebTilesConnection():
 
     @asyncio.coroutine
     def send(self, message):
-        """Send a message dictionary to the server. The message should be a dict
-        with a 'msg' key having a webtiles message type.
-
-        """
+        """Send a message dictionary to the server. The message should be a
+        dict with a 'msg' key having a webtiles message type."""
 
         if "msg" not in message:
             raise WebTilesError("Message dict must contain a 'msg' key")
@@ -210,16 +198,15 @@ class WebTilesConnection():
         yield from self.websocket.send(json.dumps(message))
 
     def remove_lobby_entry(self, process_id):
-        """Remove a lobby entry with the given process id. This id is included in
-        a "lobby_remove" message (v1 protocol) or as the "remove" key value of
-        a "lobby" message (v2 protocol).
-
-        """
+        """Remove a lobby entry with the given process id. This id is included
+        in a "lobby_remove" message (v1 protocol) or as the "remove" key value
+        of a "lobby" message (v2 protocol)."""
 
         for entry in self.lobby_entries:
             if entry["id"] == process_id:
                 self.lobby_entries.remove(entry)
                 break
+
         _log.debug("Unknown lobby id %s", process_id)
 
     def update_lobby_entries(self, entries):
@@ -235,18 +222,16 @@ class WebTilesConnection():
 
     @asyncio.coroutine
     def handle_message(self, message):
-        """Given a response message dictionary, handle the message. Returns True
-        if the message is handled by this handler. This method can be extended
-        in derived classes to handle other message types or to additional
-        handling. This base method must be called for the following message
-        types in order to manage connect state properly: "login_success",
-        "set_game_links", "lobby_entry", "lobby_remove", "lobby_clear",
-        "lobby_complete".
+        """Given a response message dictionary, handle the message. Returns
+        True if the message is handled by this handler. This method can be
+        extended in derived classes to handle other message types or to
+        additional handling. This base method must be called for the following
+        message types in order to manage connect state properly:
+        "login_success", "set_game_links", "lobby_entry", "lobby_remove",
+        "lobby_clear", "lobby_complete".
 
         This method doesn't handle the "login_fail" message type when
-        authentication is rejected.
-
-        """
+        authentication is rejected."""
 
         if message["msg"] == "ping":
             yield from self.send({"msg" : "pong"})
@@ -304,11 +289,11 @@ class WebTilesGameConnection(WebTilesConnection):
 
     Call `send_watch_game()` to watch a user's game and check for the
     `watching` property to be true after we receive confirmation from the
-    server that watching has started. The `player` and `game_id`
-    properties will be set to the username and game id of the current watched
-    game. Note that we can't guarantee that the game id is correct, since
-    WebTiles currently doesn't support specifying which game type to watch if a
-    user has multiple active games.
+    server that watching has started. The `player` and `game_id` properties
+    will be set to the username and game id of the current watched game. Note
+    that we can't guarantee that the game id is correct, since WebTiles
+    currently doesn't support specifying which game type to watch if a user has
+    multiple active games.
 
     Call `send_stop_watching()` to cease watching a game, or call
     `send_watch_game()` again.
@@ -316,9 +301,7 @@ class WebTilesGameConnection(WebTilesConnection):
     The set `spectators` holds a set spectators, excluding the username of
     `login_user`.
 
-    Call `send_chat()` can be used to send messages to WebTiles chat.
-
-    """
+    Call `send_chat()` can be used to send messages to WebTiles chat."""
 
     def __init__(self, *args, **kwargs):
         super().__init__(*args, **kwargs)
@@ -337,10 +320,7 @@ class WebTilesGameConnection(WebTilesConnection):
 
     def parse_chat_message(self, message):
         """Parse a game chat message, returning a tuple with the sender's
-        username and the chat text. HTML entities in the text are
-        decoded.
-
-        """
+        username and the chat text. HTML entities in the text are decoded."""
 
         if self.protocol_version <= 1:
             # Remove html formatting
@@ -361,9 +341,7 @@ class WebTilesGameConnection(WebTilesConnection):
     @asyncio.coroutine
     def send_chat(self, chat_text):
         """Send a WebTiles chat message. Here `chat_text` should be a simple
-        string.
-
-        """
+        string."""
 
         if not self.watching:
             raise WebTilesError(
@@ -379,9 +357,7 @@ class WebTilesGameConnection(WebTilesConnection):
     def send_watch_game(self, username, game_id):
         """Attempt to watch the given game. After calling this method, the
         connection won't be in a 'watching' state until it receives a watch
-        acknowledgement from the WebTiles server.
-
-        """
+        acknowledgement from the WebTiles server."""
 
         yield from self.send({"msg"      : "watch",
                               "username" : username})
@@ -393,9 +369,7 @@ class WebTilesGameConnection(WebTilesConnection):
     def send_stop_watching(self):
         """Send a message telling the server to stop watching this game, this
         preventing it from sending further messages related to the current
-        game. This will work even if no game is currently being watched.
-
-        """
+        game. This will work even if no game is currently being watched."""
 
         yield from self.send({"msg" : "go_lobby"})
         self.watching = False
@@ -421,19 +395,15 @@ class WebTilesGameConnection(WebTilesConnection):
 
     @asyncio.coroutine
     def handle_message(self, message):
-        """
-
-        In addition to the messages handled by `WebTilesConnection`, this method
-        handles "watching_started", used to indicate that we successfully
-        watched a game, "update_spectators", used to provide us with the list
-        of current game spectators, and the "go_lobby" (or "go" in v2 of the
-        protocol) and "game_ended" messages when watching stops.
+        """In addition to the messages handled by `WebTilesConnection`, this
+        method handles "watching_started", used to indicate that we
+        successfully watched a game, "update_spectators", used to provide us
+        with the list of current game spectators, and the "go_lobby" (or "go"
+        in v2 of the protocol) and "game_ended" messages when watching stops.
 
         Chat messages have a message type of "chat" and are not handled by this
         method, but `parse_chat_message()` is available in this class to parse
-        these.
-
-        """
+        these."""
 
         handled = yield from super().handle_message(message)
         if handled:
